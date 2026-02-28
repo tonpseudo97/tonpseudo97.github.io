@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMessage Simulator + Video Export</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .device-frame {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 28px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: #f6f6f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .time {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .nav-bar {
+            height: 44px;
+            background: #f6f6f6;
+            border-bottom: 0.5px solid #c7c7cc;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: relative;
+        }
+
+        .back-button {
+            color: #007aff;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .contact-name {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            font-size: 17px;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #fff;
+            padding: 10px 16px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message.received {
+            justify-content: flex-start;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 17px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.sent .bubble {
+            background: #007aff;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received .bubble {
+            background: #e5e5ea;
+            color: #000;
+            border-bottom-left-radius: 4px;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #8e8e93;
+            text-align: center;
+            margin: 16px 0 8px 0;
+        }
+
+        .input-bar {
+            height: 44px;
+            background: #f6f6f6;
+            border-top: 0.5px solid #c7c7cc;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        .import-section {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .import-section.hidden {
+            display: none;
+        }
+
+        .file-input-wrapper {
+            margin-top: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007aff;
+            color: #fff;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .file-label:hover {
+            background: #0051d5;
+        }
+
+        .instructions {
+            font-size: 14px;
+            color: #8e8e93;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+
+        h2 {
+            color: #000;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            opacity: 0;
+        }
+
+        .typing-indicator.show {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .typing-bubble {
+            background: #e5e5ea;
+            padding: 10px 14px;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #8e8e93;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .controls.hidden {
+            display: none;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            background: #34c759;
+            color: #fff;
+            border: none;
+            border-radius: 22px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #2fb350;
+            transform: translateY(-2px);
+        }
+
+        .control-btn:disabled {
+            background: #8e8e93;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .control-btn.recording {
+            background: #ff3b30;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4); }
+            50% { box-shadow: 0 4px 24px rgba(255, 59, 48, 0.8); }
+        }
+
+        .status-text {
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="device-frame" id="device-frame">
+        <div class="screen">
+            <div class="status-bar">
+                <div class="time" id="current-time">9:41</div>
+                <div>📶 📶 🔋</div>
+            </div>
+            
+            <div class="nav-bar">
+                <div class="back-button">‹ Messages</div>
+                <div class="contact-name" id="contact-name">Contact</div>
+            </div>
+
+            <div class="import-section" id="import-section">
+                <h2>📱 Générateur iMessage</h2>
+                <p>Importez un fichier CSV pour commencer</p>
+                <div class="file-input-wrapper">
+                    <input type="file" id="csv-file" accept=".csv">
+                    <label for="csv-file" class="file-label">Choisir un fichier CSV</label>
+                </div>
+                <div class="instructions">
+                    Format CSV: expediteur,message,timestamp<br>
+                    Timestamp: HH:MM:SS ou Texte HH:MM:SS
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages-container"></div>
+
+            <div class="input-bar"></div>
+        </div>
+    </div>
+
+    <div class="controls hidden" id="controls">
+        <button class="control-btn" id="record-btn">🎥 Générer Vidéo</button>
+        <div class="status-text" id="status-text">Prêt</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let messagesData = [];
+        let contactNameGlobal = 'Contact';
+        let isRecording = false;
+
+        function updateTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('current-time').textContent = `${hours}:${minutes}`;
+        }
+        updateTime();
+        setInterval(updateTime, 60000);
+
+        document.getElementById('csv-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const csv = event.target.result;
+                    parseAndStoreMessages(csv);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function parseTimestamp(timestampStr) {
+            const timeMatch = timestampStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+            if (timeMatch) {
+                const hours = parseInt(timeMatch[1]);
+                const minutes = parseInt(timeMatch[2]);
+                const seconds = parseInt(timeMatch[3]);
+                return hours * 3600 + minutes * 60 + seconds;
+            }
+            return null;
+        }
+
+        function formatTimestamp(timestampStr) {
+            const timeMatch = timestampStr.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (timeMatch) {
+                return timestampStr.split(' ')[0] + ' ' + timeMatch[1].padStart(2, '0') + ':' + timeMatch[2];
+            }
+            return timestampStr;
+        }
+
+        function parseAndStoreMessages(csv) {
+            const lines = csv.split('\n');
+            messagesData = [];
+            contactNameGlobal = 'Contact';
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const match = line.match(/^([^,]+),(.+?)(?:,(.+))?$/);
+                if (match) {
+                    const sender = match[1].trim();
+                    const message = match[2].trim().replace(/^["']|["']$/g, '');
+                    const timestamp = match[3] ? match[3].trim() : null;
+
+                    messagesData.push({
+                        sender: sender,
+                        message: message,
+                        timestamp: timestamp,
+                        timestampSeconds: timestamp ? parseTimestamp(timestamp) : null
+                    });
+
+                    if (sender.toLowerCase() !== 'moi' && contactNameGlobal === 'Contact') {
+                        contactNameGlobal = sender;
+                    }
+                }
+            }
+
+            document.getElementById('contact-name').textContent = contactNameGlobal;
+            document.getElementById('import-section').classList.add('hidden');
+            document.getElementById('controls').classList.remove('hidden');
+            
+            displayMessagesWithTiming(messagesData, contactNameGlobal);
+        }
+
+        function displayMessagesWithTiming(messages, contactName) {
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+
+            let cumulativeDelay = 0;
+            let lastDisplayedTime = null;
+
+            messages.forEach((msg, index) => {
+                const prevMsg = index > 0 ? messages[index - 1] : null;
+                
+                let delay = 0;
+                if (prevMsg && prevMsg.timestampSeconds !== null && msg.timestampSeconds !== null) {
+                    const realDelay = (msg.timestampSeconds - prevMsg.timestampSeconds) * 1000;
+                    delay = Math.min(realDelay, 3000);
+                } else {
+                    delay = 800;
+                }
+
+                cumulativeDelay += delay;
+
+                setTimeout(() => {
+                    const currentTime = msg.timestamp ? msg.timestamp.match(/(\d{1,2}:\d{2})/)?.[0] : null;
+                    if (currentTime && currentTime !== lastDisplayedTime) {
+                        const timestampDiv = document.createElement('div');
+                        timestampDiv.className = 'timestamp';
+                        timestampDiv.textContent = formatTimestamp(msg.timestamp);
+                        container.appendChild(timestampDiv);
+                        lastDisplayedTime = currentTime;
+                    }
+
+                    if (msg.sender.toLowerCase() !== 'moi') {
+                        const typingIndicator = document.createElement('div');
+                        typingIndicator.className = 'typing-indicator';
+                        typingIndicator.innerHTML = `
+                            <div class="typing-bubble">
+                                <div class="typing-dots">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(typingIndicator);
+                        typingIndicator.classList.add('show');
+
+                        setTimeout(() => {
+                            typingIndicator.remove();
+                            addMessage(msg, container);
+                        }, Math.min(msg.message.length * 50, 2000));
+                    } else {
+                        addMessage(msg, container);
+                    }
+                }, cumulativeDelay);
+            });
+        }
+
+        function addMessage(msg, container) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = msg.sender.toLowerCase() === 'moi' ? 'message sent' : 'message received';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = msg.message;
+            
+            messageDiv.appendChild(bubble);
+            container.appendChild(messageDiv);
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Système de génération vidéo
+        document.getElementById('record-btn').addEventListener('click', startVideoGeneration);
+
+        async function startVideoGeneration() {
+            const btn = document.getElementById('record-btn');
+            const status = document.getElementById('status-text');
+            
+            btn.disabled = true;
+            btn.classList.add('recording');
+            btn.textContent = '⏺️ Enregistrement...';
+            status.textContent = 'Préparation...';
+
+            // Réinitialiser l'affichage
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+
+            // Attendre un peu
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Démarrer la capture d'écran
+            const deviceFrame = document.getElementById('device-frame');
+            const canvas = document.createElement('canvas');
+            canvas.width = 375;
+            canvas.height = 812;
+            const ctx = canvas.getContext('2d');
+
+            const stream = canvas.captureStream(30); // 30 FPS
+            recordedChunks = [];
+
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 2500000
+            });
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                downloadVideo(blob);
+                btn.disabled = false;
+                btn.classList.remove('recording');
+                btn.textContent = '🎥 Générer Vidéo';
+                status.textContent = 'Vidéo prête !';
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+
+            // Capturer l'animation frame par frame
+            captureFrames(ctx, deviceFrame, messagesData);
+        }
+
+        async function captureFrames(ctx, deviceFrame, messages) {
+            const container = document.getElementById('messages-container');
+            let frameCount = 0;
+            const fps = 30;
+            const frameDuration = 1000 / fps;
+
+            let cumulativeDelay = 0;
+            let lastDisplayedTime = null;
+            let messageIndex = 0;
+
+            const captureInterval = setInterval(async () => {
+                await html2canvas(deviceFrame, {
+                    backgroundColor: '#000',
+                    scale: 1,
+                    width: 375,
+                    height: 812
+                }).then(canvas2 => {
+                    ctx.drawImage(canvas2, 0, 0, 375, 812);
+                });
+
+                frameCount++;
+
+                // Vérifier si on doit afficher un nouveau message
+                if (messageIndex < messages.length) {
+                    const msg = messages[messageIndex];
+                    const prevMsg = messageIndex > 0 ? messages[messageIndex - 1] : null;
+                    
+                    let delay = 0;
+                    if (prevMsg && prevMsg.timestampSeconds !== null && msg.timestampSeconds !== null) {
+                        const realDelay = (msg.timestampSeconds - prevMsg.timestampSeconds) * 1000;
+                        delay = Math.min(realDelay, 3000);
+                    } else {
+                        delay = 800;
+                    }
+
+                    if (frameCount * frameDuration >= cumulativeDelay + delay) {
+                        cumulativeDelay += delay;
+                        
+                        const currentTime = msg.timestamp ? msg.timestamp.match(/(\d{1,2}:\d{2})/)?.[0] : null;
+                        if (currentTime && currentTime !== lastDisplayedTime) {
+                            const timestampDiv = document.createElement('div');
+                            timestampDiv.className = 'timestamp';
+                            timestampDiv.textContent = formatTimestamp(msg.timestamp);
+                            container.appendChild(timestampDiv);
+                            lastDisplayedTime = currentTime;
+                        }
+
+                        addMessage(msg, container);
+                        messageIndex++;
+                    }
+                }
+
+                // Arrêter l'enregistrement après tous les messages
+                if (messageIndex >= messages.length && frameCount * frameDuration > cumulativeDelay + 2000) {
+                    clearInterval(captureInterval);
+                    mediaRecorder.stop();
+                }
+            }, frameDuration);
+        }
+
+        function downloadVideo(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `imessage_conversation_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            document.getElementById('status-text').textContent = 'Téléchargement terminé !';
+        }
+    </script>
+</body>
+</html>
